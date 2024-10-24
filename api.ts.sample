@@ -1,0 +1,50 @@
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { jwt } from 'hono/jwt'
+
+type Bindings = {
+  PRIVY_VERIFICATION_KEY: string
+}
+
+const app = new Hono<{ Bindings: Bindings }>()
+
+// Add CORS middleware
+app.use('*', cors())
+
+app.use('/protected/*', (c, next) => {
+  const jwtMiddleware = jwt({
+    secret: c.env.PRIVY_VERIFICATION_KEY,
+    alg: 'ES256'
+  })
+  return jwtMiddleware(c, next)
+})
+
+app.get('/protected/profile', async (c) => {
+  const payload = c.get('jwtPayload')
+  return c.json(JSON.parse(payload.linked_accounts as any))
+})
+
+app.get('/decrypt', async (c) => {
+  return c.json({ verified: true })
+})
+
+app.get('/', (c) => {
+  return c.text('Hello Hono!')
+})
+
+// New POST endpoint for name submission
+app.post('/submit', async (c) => {
+  const { payload } = await c.req.json()
+
+  if (!payload) {
+    return c.json({ error: 'Name is required' }, 400)
+  }
+
+  // Here you can process the submitted name (e.g., save to database)
+  // For now, we'll just return a success message
+  return c.json({
+    url: "https://example.com/film",
+  }, 201)
+})
+
+export default app
